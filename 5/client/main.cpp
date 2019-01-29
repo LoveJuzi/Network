@@ -7,52 +7,136 @@
 #include <unistd.h>
 
 #define MAXLINE 1024
-#define SA const struct sockaddr
+#define SA struct sockaddr
+#define SERV_PORT 9877
+#define LISTENQ 5
+
+int Socket(int __domain, int __type, int __protocol) {
+   int fd;
+   fd = socket(__domain, __type, __protocol);
+   if (fd <= 0) {
+      exit(-1);
+   }
+
+   return fd;
+}
+
+int Bind(int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len) {
+   if (bind(__fd, __addr, __len) < 0) {
+      exit(-1);
+   }
+
+   return 0;
+}
+
+int Listen (int __fd, int __n) {
+   if (listen(__fd, __n) < 0) {
+      exit(-1);
+   }
+
+   return 0;
+}
+
+int Accept(int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addr_len) {
+   int fd;
+   
+   fd = accept(__fd, __addr, __addr_len);
+
+   if ( fd <= 0) {
+      exit(-1);
+   }
+
+   return fd;
+}
+
+int Close(int __fd) {
+   if (close(__fd) < 0) {
+      exit(-1);
+   }
+
+   return 0;
+}
+
+ssize_t writen(int fd, const void *vptr, size_t n) {
+   size_t nleft;
+   ssize_t nwritten;
+
+   const char *ptr;
+
+   ptr = (const char *)vptr;
+   nleft = n;
+   while (nleft > 0) {
+      if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
+         if (nwritten <0 &&errno ==EINTR) {
+            nwritten = 0;
+         } else {
+            return -1;
+         }
+      }
+      nleft -= nwritten;
+      ptr += nwritten;
+   }
+
+   return n;
+}
+
+ssize_t Writen(int fd, const void *vptr, size_t n) {
+   if (writen(fd, vptr, n) < 0) {
+      exit(-1);
+   }
+
+   return n;
+}
+
+void str_echo(int sockfd) {
+   ssize_t n;
+   char buf[MAXLINE];
+
+again:
+   while ((n = read(sockfd, buf, MAXLINE)) < 0) {
+      Writen(sockfd, buf, n);
+   }
+
+   if (n < 0 && errno == EINTR) {
+      goto again;
+   } else if (n < 0) {
+      exit(-1);
+   }
+}
 
 int main(int argc, char **argv)
 {
-   // 1. 套接字的初始化
-   int sockfd;
-   int n;
-   char recvline[MAXLINE + 1];
-   struct sockaddr_in servaddr;
+   int listenfd, connfd;
+   pid_t childpid;
+   socklen_t clilen;
+   struct sockaddr_in cliaddr, servaddr;
 
-   sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   if (sockfd < 0)
-   {
-      return -1;
-   }
+   // 构造listen sockert
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+
+   // 初始化 servaddr 相关信息
    bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family =  AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
 
-   // 2. 构造套接字的连接信息
-   servaddr.sin_family = AF_INET;
-   servaddr.sin_port = htons(13);
+   // 绑定服务到指定的内核
+   Bind(listenfd, (SA *)&servaddr, sizeof(servaddr));
 
-   // cn.pool.ntp.org
-   if (inet_pton(AF_INET, "193.228.143.14", &servaddr.sin_addr) <= 0)
-   {
-      return -1;
-   }
+   // 监听服务
+   Listen(listenfd, LISTENQ);
 
-   // 3. 连接
-   if (connect(sockfd, (SA *)&servaddr, sizeof(servaddr)) < 0)
-   {
-      return -1;
-   }
+   // 并发处理业务
+   for (;;) {
+      clilen = sizeof(cliaddr);
+      connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
 
-   // 4. 从套接字中获取信息
-   while ((n = read(sockfd, recvline, MAXLINE)) > 0)
-   {
-      recvline[n] = '\0';
-      if (fputs(recvline, stdout) == EOF)
-      {
-         return -1;
+      if ( (childpid = fork()) == 0) {
+         Close(listenfd);
+         str_echo(connfd);
+         exit(0);
       }
-   }
-
-   if (n < 0)
-   {
-      return -1;
+      Close(connfd);
    }
 
    return 0;
