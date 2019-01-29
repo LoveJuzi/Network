@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/juzi/Network/daytimetcpcli/build",
+  "command": "/usr/bin/g++-7    -g   -std=gnu++14 -o CMakeFiles/daytimetcpcli.dir/main.cpp.o -c /home/juzi/Network/daytimetcpcli/main.cpp",
+  "file": "/home/juzi/Network/daytimetcpcli/main.cpp"
+}
+]
