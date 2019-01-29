@@ -1,3 +1,0 @@
-/home/juzi/Network/daytimetcpcli/build/CMakeFiles/rebuild_cache.dir
-/home/juzi/Network/daytimetcpcli/build/CMakeFiles/daytimetcpcli.dir
-/home/juzi/Network/daytimetcpcli/build/CMakeFiles/edit_cache.dir
