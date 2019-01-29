@@ -132,6 +132,7 @@ int main(int argc, char **argv)
       connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
 
       if ( (childpid = fork()) == 0) {
+         printf("start %d\n", childpid);
          Close(listenfd);
          str_echo(connfd);
          exit(0);
