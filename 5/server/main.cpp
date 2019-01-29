@@ -8,7 +8,7 @@
 
 #define MAXLINE 1024
 #define SA struct sockaddr
-#define SERV_PORT 8080
+#define SERV_PORT 9877
 #define LISTENQ 5
 
 int Socket(int __domain, int __type, int __protocol) {
@@ -57,6 +57,53 @@ int Close(int __fd) {
    return 0;
 }
 
+ssize_t writen(int fd, const void *vptr, size_t n) {
+   size_t nleft;
+   ssize_t nwritten;
+
+   const char *ptr;
+
+   ptr = (const char *)vptr;
+   nleft = n;
+   while (nleft > 0) {
+      if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
+         if (nwritten <0 &&errno ==EINTR) {
+            nwritten = 0;
+         } else {
+            return -1;
+         }
+      }
+      nleft -= nwritten;
+      ptr += nwritten;
+   }
+
+   return n;
+}
+
+ssize_t Writen(int fd, const void *vptr, size_t n) {
+   if (writen(fd, vptr, n) < 0) {
+      exit(-1);
+   }
+
+   return n;
+}
+
+void str_echo(int sockfd) {
+   ssize_t n;
+   char buf[MAXLINE];
+
+again:
+   while ((n = read(sockfd, buf, MAXLINE)) < 0) {
+      Writen(sockfd, buf, n);
+   }
+
+   if (n < 0 && errno == EINTR) {
+      goto again;
+   } else if (n < 0) {
+      exit(-1);
+   }
+}
+
 int main(int argc, char **argv)
 {
    int listenfd, connfd;
@@ -86,6 +133,7 @@ int main(int argc, char **argv)
 
       if ( (childpid = fork()) == 0) {
          Close(listenfd);
+         str_echo(connfd);
          exit(0);
       }
       Close(connfd);
