@@ -1,10 +1,13 @@
 #include <iostream>
-#include <sys/socket.h>
 #include <string.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <signal.h>
+
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define MAXLINE 1024
 #define SA struct sockaddr
@@ -113,7 +116,8 @@ ssize_t readn(int fd, void *vptr, size_t n)
 
 ssize_t Readn(int fd, void *vptr, size_t n)
 {
-   if (readn(fd, vptr, n) < 0) {
+   if (readn(fd, vptr, n) < 0)
+   {
       exit(-1);
    }
 
@@ -177,26 +181,42 @@ void str_cli(int sockfd)
    }
 }
 
-void str_echo(int sockfd) {
+void str_echo(int sockfd)
+{
    ssize_t n;
    char buf[MAXLINE];
 
    printf("log1\n");
 again:
-   while ((n = read(sockfd, buf, MAXLINE)) > 0) {
+   while ((n = read(sockfd, buf, MAXLINE)) > 0)
+   {
       printf("log2\n");
       Writen(sockfd, buf, n);
       printf("log3\n");
    }
 
-   if (n < 0 && errno == EINTR) {
+   if (n < 0 && errno == EINTR)
+   {
       printf("log4\n");
       goto again;
-   } else if (n < 0) {
+   }
+   else if (n < 0)
+   {
       printf("log4\n");
       exit(-1);
    }
    printf("log5\n");
+}
+
+void sig_chld(int signo)
+{
+   pid_t pid;
+   int stat;
+
+   // pid = wait(&stat);
+   while ( (pid = waitpid(-1, &stat, WNOHANG)) > 0);
+   
+   return;
 }
 
 int main(int argc, char **argv)
@@ -211,7 +231,7 @@ int main(int argc, char **argv)
 
    // 初始化 servaddr 相关信息
    bzero(&servaddr, sizeof(servaddr));
-   servaddr.sin_family =  AF_INET;
+   servaddr.sin_family = AF_INET;
    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
    servaddr.sin_port = htons(SERV_PORT);
 
@@ -221,12 +241,17 @@ int main(int argc, char **argv)
    // 监听服务
    Listen(listenfd, LISTENQ);
 
+   // 注册信号处理函数
+   signal(SIGCHLD, sig_chld);
+
    // 并发处理业务
-   for (;;) {
+   for (;;)
+   {
       clilen = sizeof(cliaddr);
       connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
 
-      if ( (childpid = fork()) == 0) {
+      if ((childpid = fork()) == 0)
+      {
          Close(listenfd);
          printf("start %d\n", getpid());
          str_echo(connfd);
