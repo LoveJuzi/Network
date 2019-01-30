@@ -5,6 +5,10 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <stdlib.h>
+#include <algorithm>
 
 #define MAXLINE 1024
 #define SA struct sockaddr
@@ -77,6 +81,17 @@ int Connect(int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len)
    return 0;
 }
 
+ssize_t Read(int __fd, void *__buf, size_t __nbytes)
+{
+   auto n = read(__fd, __buf, __nbytes);
+   if (n < 0)
+   {
+      exit(-1);
+   }
+
+   return n;
+}
+
 ssize_t readn(int fd, void *vptr, size_t n)
 {
    size_t nleft;
@@ -104,6 +119,8 @@ ssize_t readn(int fd, void *vptr, size_t n)
          break;
       }
 
+      puts("readn");
+
       nleft -= nread;
       ptr += nread;
    }
@@ -113,7 +130,8 @@ ssize_t readn(int fd, void *vptr, size_t n)
 
 ssize_t Readn(int fd, void *vptr, size_t n)
 {
-   if (readn(fd, vptr, n) < 0) {
+   if (readn(fd, vptr, n) < 0)
+   {
       exit(-1);
    }
 
@@ -165,15 +183,58 @@ void str_cli(int sockfd)
    char sendline[MAXLINE];
    char recvline[MAXLINE];
 
-   while (fgets(sendline, MAXLINE, stdin) != NULL)
+   int stdineof = 0;
+   for (;;)
    {
-      // printf("%s", sendline);
-      Writen(sockfd, sendline, strlen(sendline));
+      int maxfdp1;
+      fd_set rset;
 
-      Readn(sockfd, recvline, strlen(sendline));
-      recvline[strlen(sendline)] = '\0';
+      FD_ZERO(&rset);
+      if (stdineof == 0)
+      {
+         FD_SET(fileno(stdin), &rset);
+      }
+      FD_SET(sockfd, &rset);
+      maxfdp1 = std::max(fileno(stdin), sockfd) + 1;
 
-      fputs(recvline, stdout);
+      select(maxfdp1, &rset, NULL, NULL, NULL);
+
+      if (FD_ISSET(fileno(stdin), &rset))
+      {
+         bzero(sendline, sizeof(sendline));
+         auto n = Read(fileno(stdin), sendline, MAXLINE - 1);
+         if (n == 0)
+         {
+            stdineof = 1;
+            shutdown(sockfd, SHUT_WR);
+            FD_CLR(fileno(stdin), &rset);
+         }
+         else
+         {
+            Writen(sockfd, sendline, strlen(sendline));
+         }
+      }
+
+      if (FD_ISSET(sockfd, &rset))
+      {
+         auto n = Read(sockfd, recvline, MAXLINE - 1);
+
+         if (n == 0)
+         {
+            if (stdineof == 1)
+            {
+               return;
+            }
+            else
+            {
+               puts("str_cli: server terminated prematurely");
+               exit(-1);
+            }
+         }
+
+         recvline[n] = '\0';
+         fputs(recvline, stdout);
+      }
    }
 }
 

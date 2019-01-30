@@ -164,48 +164,25 @@ ssize_t Writen(int fd, const void *vptr, size_t n)
    return n;
 }
 
-void str_cli(int sockfd)
-{
-   char sendline[MAXLINE];
-   char recvline[MAXLINE];
-
-   while (fgets(sendline, MAXLINE, stdin) != NULL)
-   {
-      // printf("%s", sendline);
-      Writen(sockfd, sendline, strlen(sendline));
-
-      Readn(sockfd, recvline, strlen(sendline));
-      recvline[strlen(sendline)] = '\0';
-
-      fputs(recvline, stdout);
-   }
-}
-
 void str_echo(int sockfd)
 {
    ssize_t n;
    char buf[MAXLINE];
 
-   printf("log1\n");
 again:
    while ((n = read(sockfd, buf, MAXLINE)) > 0)
    {
-      printf("log2\n");
       Writen(sockfd, buf, n);
-      printf("log3\n");
    }
 
    if (n < 0 && errno == EINTR)
    {
-      printf("log4\n");
       goto again;
    }
    else if (n < 0)
    {
-      printf("log4\n");
       exit(-1);
    }
-   printf("log5\n");
 }
 
 void sig_chld(int signo)
