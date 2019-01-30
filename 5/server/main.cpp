@@ -11,53 +11,117 @@
 #define SERV_PORT 9877
 #define LISTENQ 5
 
-int Socket(int __domain, int __type, int __protocol) {
+int Socket(int __domain, int __type, int __protocol)
+{
    int fd;
    fd = socket(__domain, __type, __protocol);
-   if (fd <= 0) {
+   if (fd <= 0)
+   {
       exit(-1);
    }
 
    return fd;
 }
 
-int Bind(int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len) {
-   if (bind(__fd, __addr, __len) < 0) {
+int Bind(int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len)
+{
+   if (bind(__fd, __addr, __len) < 0)
+   {
       exit(-1);
    }
 
    return 0;
 }
 
-int Listen (int __fd, int __n) {
-   if (listen(__fd, __n) < 0) {
+int Listen(int __fd, int __n)
+{
+   if (listen(__fd, __n) < 0)
+   {
       exit(-1);
    }
 
    return 0;
 }
 
-int Accept(int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addr_len) {
+int Accept(int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addr_len)
+{
    int fd;
-   
+
    fd = accept(__fd, __addr, __addr_len);
 
-   if ( fd <= 0) {
+   if (fd <= 0)
+   {
       exit(-1);
    }
 
    return fd;
 }
 
-int Close(int __fd) {
-   if (close(__fd) < 0) {
+int Close(int __fd)
+{
+   if (close(__fd) < 0)
+   {
       exit(-1);
    }
 
    return 0;
 }
 
-ssize_t writen(int fd, const void *vptr, size_t n) {
+int Connect(int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len)
+{
+   if (connect(__fd, __addr, __len) < 0)
+   {
+      exit(-1);
+   }
+
+   return 0;
+}
+
+ssize_t readn(int fd, void *vptr, size_t n)
+{
+   size_t nleft;
+   ssize_t nread;
+   char *ptr;
+
+   ptr = (char *)vptr;
+   nleft = n;
+
+   while (nleft > 0)
+   {
+      if ((nread = read(fd, ptr, nleft)) < 0)
+      {
+         if (errno == EINTR)
+         {
+            nread = 0;
+         }
+         else
+         {
+            return -1;
+         }
+      }
+      else if (nread == 0)
+      {
+         break;
+      }
+
+      nleft -= nread;
+      ptr += nread;
+   }
+
+   return (n - nleft);
+}
+
+ssize_t Readn(int fd, void *vptr, size_t n)
+{
+   if (readn(fd, vptr, n) < 0) {
+      exit(-1);
+   }
+
+   return n;
+}
+
+ssize_t writen(int fd, const void *vptr, size_t n)
+{
    size_t nleft;
    ssize_t nwritten;
 
@@ -65,11 +129,16 @@ ssize_t writen(int fd, const void *vptr, size_t n) {
 
    ptr = (const char *)vptr;
    nleft = n;
-   while (nleft > 0) {
-      if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
-         if (nwritten <0 &&errno ==EINTR) {
+   while (nleft > 0)
+   {
+      if ((nwritten = write(fd, ptr, nleft)) <= 0)
+      {
+         if (nwritten < 0 && errno == EINTR)
+         {
             nwritten = 0;
-         } else {
+         }
+         else
+         {
             return -1;
          }
       }
@@ -80,12 +149,32 @@ ssize_t writen(int fd, const void *vptr, size_t n) {
    return n;
 }
 
-ssize_t Writen(int fd, const void *vptr, size_t n) {
-   if (writen(fd, vptr, n) < 0) {
+ssize_t Writen(int fd, const void *vptr, size_t n)
+{
+   if (writen(fd, vptr, n) < 0)
+   {
+      printf("writen error\n");
       exit(-1);
    }
 
    return n;
+}
+
+void str_cli(int sockfd)
+{
+   char sendline[MAXLINE];
+   char recvline[MAXLINE];
+
+   while (fgets(sendline, MAXLINE, stdin) != NULL)
+   {
+      // printf("%s", sendline);
+      Writen(sockfd, sendline, strlen(sendline));
+
+      Readn(sockfd, recvline, strlen(sendline));
+      recvline[strlen(sendline)] = '\0';
+
+      fputs(recvline, stdout);
+   }
 }
 
 void str_echo(int sockfd) {
