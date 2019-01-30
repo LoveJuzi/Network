@@ -160,27 +160,6 @@ ssize_t Writen(int fd, const void *vptr, size_t n)
    return n;
 }
 
-void str_echo(int sockfd)
-{
-   ssize_t n;
-   char buf[MAXLINE];
-
-again:
-   while ((n = read(sockfd, buf, MAXLINE)) < 0)
-   {
-      Writen(sockfd, buf, n);
-   }
-
-   if (n < 0 && errno == EINTR)
-   {
-      goto again;
-   }
-   else if (n < 0)
-   {
-      exit(-1);
-   }
-}
-
 void str_cli(int sockfd)
 {
    char sendline[MAXLINE];
