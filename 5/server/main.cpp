@@ -92,16 +92,22 @@ void str_echo(int sockfd) {
    ssize_t n;
    char buf[MAXLINE];
 
+   printf("log1\n");
 again:
-   while ((n = read(sockfd, buf, MAXLINE)) < 0) {
+   while ((n = read(sockfd, buf, MAXLINE)) > 0) {
+      printf("log2\n");
       Writen(sockfd, buf, n);
+      printf("log3\n");
    }
 
    if (n < 0 && errno == EINTR) {
+      printf("log4\n");
       goto again;
    } else if (n < 0) {
+      printf("log4\n");
       exit(-1);
    }
+   printf("log5\n");
 }
 
 int main(int argc, char **argv)
@@ -132,11 +138,14 @@ int main(int argc, char **argv)
       connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
 
       if ( (childpid = fork()) == 0) {
-         printf("start %d\n", childpid);
          Close(listenfd);
+         printf("start %d\n", getpid());
          str_echo(connfd);
+         printf("end %d\n", getpid());
+         Close(connfd);
          exit(0);
       }
+      printf("start main %d\n", childpid);
       Close(connfd);
    }
 

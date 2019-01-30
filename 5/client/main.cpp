@@ -113,8 +113,7 @@ ssize_t readn(int fd, void *vptr, size_t n)
 
 ssize_t Readn(int fd, void *vptr, size_t n)
 {
-   if (readn(fd, vptr, n) < 0)
-   {
+   if (readn(fd, vptr, n) < 0) {
       exit(-1);
    }
 
@@ -154,6 +153,7 @@ ssize_t Writen(int fd, const void *vptr, size_t n)
 {
    if (writen(fd, vptr, n) < 0)
    {
+      printf("writen error\n");
       exit(-1);
    }
 
@@ -188,9 +188,11 @@ void str_cli(int sockfd)
 
    while (fgets(sendline, MAXLINE, stdin) != NULL)
    {
+      // printf("%s", sendline);
       Writen(sockfd, sendline, strlen(sendline));
 
-      Readn(sockfd, recvline, MAXLINE);
+      Readn(sockfd, recvline, strlen(sendline));
+      recvline[strlen(sendline)] = '\0';
 
       fputs(recvline, stdout);
    }
