@@ -12,7 +12,7 @@
 
 #define MAXLINE 1024
 #define SA struct sockaddr
-#define SERV_PORT 9877
+#define SERV_PORT 9879
 #define LISTENQ 5
 
 int Socket(int __domain, int __type, int __protocol)
