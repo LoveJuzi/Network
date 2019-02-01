@@ -242,17 +242,29 @@ int main(int argc, char **argv)
 {
    int sockfd;
    struct sockaddr_in servaddr;
+   socklen_t servlen;
+   char buf[MAXLINE];
 
-   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   // 创建一个socket
+   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
-   bzero(&servaddr, sizeof(servaddr));
    servaddr.sin_family = AF_INET;
    servaddr.sin_port = htons(SERV_PORT);
    inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
 
-   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
+   // 无限循环，发送数据，并且打印数据
+   for (;;) {
+      if (fgets(buf, MAXLINE, stdin) == NULL) {
+         break;
+      }
 
-   str_cli(sockfd);
+      servlen = sizeof(servaddr);
+      sendto(sockfd, buf, MAXLINE, 0, (SA*)&servaddr, servlen);
 
+      recvfrom(sockfd, buf, MAXLINE, 0, (SA *)&servaddr, &servlen);
+
+      fputs(buf, stdout);
+   }
+ 
    return 0;
 }

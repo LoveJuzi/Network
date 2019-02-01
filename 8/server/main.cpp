@@ -249,83 +249,26 @@ int daemon_init(const char *pname, int facility) {
 
 int main(int argc, char **argv)
 {
-    int listenfd, connfd;
-    pid_t childpid;
+    int sockfd;
+    struct sockaddr_in servaddr;
+    struct sockaddr_in cliaddr;
     socklen_t clilen;
-    struct sockaddr_in cliaddr, servaddr;
+    char buf[MAXLINE];
 
-    daemon_init(argv[0], 0);
+    // 创建 socket 
+    sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
-    // 构造listen sockert
-    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
-
-    // 初始化 servaddr 相关信息
-    bzero(&servaddr, sizeof(servaddr));
+    // 绑定端口
     servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(SERV_PORT);
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    Bind(sockfd, (SA *)&servaddr, sizeof(servaddr));
 
-    // 绑定服务到指定的内核
-    Bind(listenfd, (SA *)&servaddr, sizeof(servaddr));
+    // 无限循环，等待输入
+    for (;;) {
+        clilen = sizeof(cliaddr);
+        auto n = recvfrom(sockfd, buf, MAXLINE, 0, (SA *)&cliaddr, &clilen);
 
-    // 监听服务
-    Listen(listenfd, LISTENQ);
-
-    // 所有的客户端申请的fd
-    std::set<int> fdset;
-
-    // 并发处理业务
-    for (;;)
-    {
-        fd_set allset;
-
-        FD_ZERO(&allset);
-
-        auto maxfdp1 = listenfd + 1;
-
-        FD_SET(listenfd, &allset);
-        for (auto itr = fdset.begin(); itr != fdset.end(); ++itr)
-        {
-            FD_SET(*itr, &allset);
-            maxfdp1 = std::max(maxfdp1, *itr + 1);
-        }
-
-        select(maxfdp1, &allset, NULL, NULL, NULL);
-
-        if (FD_ISSET(listenfd, &allset))
-        {
-            clilen = sizeof(cliaddr);
-            connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
-            fdset.insert(connfd);
-        }
-
-        std::vector<int> rmfd;
-        for (auto itr = fdset.begin(); itr != fdset.end(); ++itr)
-        {
-            if (FD_ISSET(*itr, &allset))
-            {
-                ssize_t n;
-                char buf[MAXLINE];
-
-                bzero(buf, sizeof(buf));
-                n = read(*itr, buf, MAXLINE);
-                if (n == 0)
-                {
-                    rmfd.push_back(*itr);
-                    Close(*itr);
-                }
-                else
-                {
-                    Writen(*itr, buf, n);
-                }
-            }
-        }
-
-        for (auto itr = rmfd.begin(); itr != rmfd.end(); ++itr)
-        {
-            fdset.erase(*itr);
-        }
+        sendto(sockfd, buf, n, 0, (SA *)&cliaddr, clilen);
     }
-
-    exit(0);
 }
